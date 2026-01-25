@@ -1,4 +1,4 @@
-// SPDX-License-Identifer:MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
 
@@ -11,15 +11,15 @@ contract Token {
 
     uint8 public constant DECIMALS = 18;
 
-    string private s_name;
-    string private s_symbol;
+    string private sName;
+    string private sSymbol;
 
-    uint256 private s_totalSupply;
+    uint256 private sTotalSupply;
 
-    mapping(address => uint256) private s_balances;
-    mapping(address => mapping(address => uint256)) private s_allowances;
+    mapping(address => uint256) private sBalances;
+    mapping(address => mapping(address => uint256)) private sAllowances;
 
-    address private immutable i_owner;
+    address private immutable I_OWNER;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(
@@ -29,8 +29,12 @@ contract Token {
     );
 
     modifier onlyOwner() {
-        require(msg.sender == i_owner, "Only owner");
+        _onlyOwner();
         _;
+    }
+
+    function _onlyOwner() internal view {
+        require(msg.sender == I_OWNER, "Only owner");
     }
 
     constructor(
@@ -38,39 +42,39 @@ contract Token {
         string memory symbol_,
         uint256 initialSupply_
     ) {
-        s_name = name_;
-        s_symbol = symbol_;
-        i_owner = msg.sender;
+        sName = name_;
+        sSymbol = symbol_;
+        I_OWNER = msg.sender;
         _mint(msg.sender, initialSupply_);
     }
 
     //lets make the getter functions
 
     function name() external view returns (string memory) {
-        return s_name;
+        return sName;
     }
 
     function symbol() external view returns (string memory) {
-        return s_symbol;
+        return sSymbol;
     }
 
     function totalSupply() external view returns (uint256) {
-        return s_totalSupply;
+        return sTotalSupply;
     }
 
     function balanceOf(address account) external view returns (uint256) {
-        return s_balances[account];
+        return sBalances[account];
     }
 
     function allowance(
-        address owner,
+        address tokenOwner,
         address spender
     ) external view returns (uint256) {
-        return s_allowances[owner][spender];
+        return sAllowances[tokenOwner][spender];
     }
 
     function owner() external view returns (address) {
-        return i_owner;
+        return I_OWNER;
     }
 
     //lets make the functions that are given by the interface of OpenZepplin
@@ -81,7 +85,7 @@ contract Token {
     }
 
     function approve(address spender, uint256 amount) external returns (bool) {
-        s_allowances[msg.sender][spender] = amount;
+        sAllowances[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
@@ -91,11 +95,11 @@ contract Token {
         address to,
         uint256 amount
     ) external returns (bool) {
-        uint256 currentAllowance = s_allowances[from][msg.sender];
+        uint256 currentAllowance = sAllowances[from][msg.sender];
         require(currentAllowance >= amount, "Allowance exceeded");
 
         unchecked {
-            s_allowances[from][msg.sender] = currentAllowance - amount;
+            sAllowances[from][msg.sender] = currentAllowance - amount;
         }
 
         _transfer(from, to, amount);
@@ -105,12 +109,12 @@ contract Token {
     //make the main comoutation functions
     function _transfer(address from, address to, uint256 amount) internal {
         require(to != address(0), "Transfer to zero address");
-        uint256 fromBalance = s_balances[from];
+        uint256 fromBalance = sBalances[from];
         require(fromBalance >= amount, "Balance too low");
 
         unchecked {
-            s_balances[from] = fromBalance - amount;
-            s_balances[to] += amount;
+            sBalances[from] = fromBalance - amount;
+            sBalances[to] += amount;
         }
 
         emit Transfer(from, to, amount);
@@ -119,8 +123,8 @@ contract Token {
     function _mint(address to, uint256 amount) internal {
         require(to != address(0), "Mint to zero address");
 
-        s_totalSupply += amount;
-        s_balances[to] += amount;
+        sTotalSupply += amount;
+        sBalances[to] += amount;
 
         emit Transfer(address(0), to, amount);
     }
