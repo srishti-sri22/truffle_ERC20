@@ -22,11 +22,7 @@ contract Token {
     address private immutable I_OWNER;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     modifier onlyOwner() {
         _onlyOwner();
@@ -37,11 +33,7 @@ contract Token {
         require(msg.sender == I_OWNER, "Only owner");
     }
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint256 initialSupply_
-    ) {
+    constructor(string memory name_, string memory symbol_, uint256 initialSupply_) {
         sName = name_;
         sSymbol = symbol_;
         I_OWNER = msg.sender;
@@ -66,10 +58,7 @@ contract Token {
         return sBalances[account];
     }
 
-    function allowance(
-        address tokenOwner,
-        address spender
-    ) external view returns (uint256) {
+    function allowance(address tokenOwner, address spender) external view returns (uint256) {
         return sAllowances[tokenOwner][spender];
     }
 
@@ -90,11 +79,7 @@ contract Token {
         return true;
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         uint256 currentAllowance = sAllowances[from][msg.sender];
         require(currentAllowance >= amount, "Allowance exceeded");
 

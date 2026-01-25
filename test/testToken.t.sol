@@ -1,4 +1,4 @@
-// SPDX-License_Identifier: MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.20;
 
@@ -33,13 +33,14 @@ contract TestToken is Test {
     function testTransfer() external {
         vm.prank(OWNER);
         token.transfer(PERS1, 100e18);
-
+        uint256 supplyBefore = token.totalSupply();
         assertEq(token.balanceOf(PERS1), 100e18);
         assertEq(token.balanceOf(OWNER), INITIAL_SUPPLY - 100e18);
+        assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferEvent() external {
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, false, true, address(token));
         emit Token.Transfer(OWNER, PERS1, 50e18);
 
         vm.prank(OWNER);
@@ -49,8 +50,9 @@ contract TestToken is Test {
     function testApprove() external {
         vm.prank(OWNER);
         token.approve(PERS1, 200e18);
-
+        uint256 supplyBefore = token.totalSupply();
         assertEq(token.allowance(OWNER, PERS1), 200e18);
+        assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testApproveEvent() external {
@@ -68,9 +70,10 @@ contract TestToken is Test {
 
         vm.prank(PERS1);
         token.transferFrom(OWNER, PERS2, 150e18);
-
+        uint256 supplyBefore = token.totalSupply();
         assertEq(token.balanceOf(PERS2), 150e18);
         assertEq(token.allowance(OWNER, PERS1), 150e18);
+        assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferFromExactAllowance() external {
@@ -79,8 +82,9 @@ contract TestToken is Test {
 
         vm.prank(PERS1);
         token.transferFrom(OWNER, PERS2, 1e18);
-
+        uint256 supplyBefore = token.totalSupply();
         assertEq(token.allowance(OWNER, PERS1), 0);
+        assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferRevertLowBalance() external {
@@ -119,7 +123,7 @@ contract TestToken is Test {
     }
 
     function testMintEvent() external {
-        vm.expectEmit(true, true, false, true);
+        vm.expectEmit(true, true, false, true, address(token));
         emit Token.Transfer(address(0), PERS1, 100e18);
 
         vm.prank(OWNER);
