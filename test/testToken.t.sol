@@ -5,12 +5,12 @@ pragma solidity ^0.8.20;
 import {Test} from "forge-std/Test.sol";
 import {Token} from "../src/Token.sol";
 
-contract TestToken is Test{
+contract TestToken is Test {
     Token token;
 
     address OWNER = address(0xABCD);
     address PERS1 = address(0x1);
-    address PERS2   = address(0x2);
+    address PERS2 = address(0x2);
     address PERS3 = address(0x3);
 
     uint256 constant INITIAL_SUPPLY = 1000e18;
@@ -20,7 +20,7 @@ contract TestToken is Test{
         token = new Token("Truffle", "TFL", INITIAL_SUPPLY);
     }
 
-    function testGetters() external view{
+    function testGetters() external view {
         assertEq(token.name(), "Truffle");
         assertEq(token.symbol(), "TFL");
         assertEq(token.DECIMALS(), 18);
@@ -45,8 +45,6 @@ contract TestToken is Test{
         vm.prank(OWNER);
         token.transfer(PERS1, 50e18);
     }
-
-    
 
     function testApprove() external {
         vm.prank(OWNER);
@@ -84,7 +82,6 @@ contract TestToken is Test{
 
         assertEq(token.allowance(OWNER, PERS1), 0);
     }
-
 
     function testTransferRevertLowBalance() external {
         vm.prank(PERS1);
@@ -141,6 +138,25 @@ contract TestToken is Test{
         token.mint(address(0), 1e18);
     }
 
-    
-    
+    function testFuzzTransfer(uint256 amount) external {
+        amount = bound(amount, 1, INITIAL_SUPPLY);
+
+        vm.prank(OWNER);
+        token.transfer(PERS1, amount);
+
+        assertEq(token.balanceOf(PERS1), amount);
+    }
+
+    function testFuzzApproveAndTransferFrom(uint256 amount) external {
+        amount = bound(amount, 1, INITIAL_SUPPLY);
+
+        vm.prank(OWNER);
+        token.approve(PERS1, amount);
+
+        vm.prank(PERS1);
+        token.transferFrom(OWNER, PERS2, amount);
+
+        assertEq(token.balanceOf(PERS2), amount);
+        assertEq(token.allowance(OWNER, PERS1), 0);
+    }
 }
