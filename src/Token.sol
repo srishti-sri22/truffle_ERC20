@@ -25,12 +25,8 @@ contract Token {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
     modifier onlyOwner() {
-        _onlyOwner();
+        require(msg.sender == I_OWNER, "Only owner allowed");
         _;
-    }
-
-    function _onlyOwner() internal view {
-        require(msg.sender == I_OWNER, "Only owner");
     }
 
     constructor(string memory name_, string memory symbol_, uint256 initialSupply_) {
