@@ -96,4 +96,9 @@ contract Token {
         emit Transfer(address(0), to, amount);
     }
 
+
+    //now lets make the final and main minting function, for the faucet
+     function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
+    }
 }
