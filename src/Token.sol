@@ -74,4 +74,26 @@ contract Token {
     ) external view returns (uint256) {
         return allowances[tokenOwner][spender];
     }
+
+
+    //make the main comoutation functions
+    function _transfer(address from, address to, uint256 amount) internal {
+        require(to != address(0), "Transfer to zero address");
+        require(balances[from] >= amount, "Balance too low");
+
+        balances[from] -= amount;
+        balances[to] += amount;
+
+        emit Transfer(from, to, amount);
+    }
+
+    function _mint(address to, uint256 amount) internal {
+        require(to != address(0), "Mint to zero address");
+
+        totalSupply += amount;
+        balances[to] += amount;
+
+        emit Transfer(address(0), to, amount);
+    }
+
 }
