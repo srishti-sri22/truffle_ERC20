@@ -113,6 +113,34 @@ contract TestToken is Test{
         token.transferFrom(OWNER, PERS2, INITIAL_SUPPLY + 1);
     }
 
+    function testMint() external {
+        vm.prank(OWNER);
+        token.mint(PERS1, 500e18);
+
+        assertEq(token.balanceOf(PERS1), 500e18);
+        assertEq(token.totalSupply(), INITIAL_SUPPLY + 500e18);
+    }
+
+    function testMintEvent() external {
+        vm.expectEmit(true, true, false, true);
+        emit Token.Transfer(address(0), PERS1, 100e18);
+
+        vm.prank(OWNER);
+        token.mint(PERS1, 100e18);
+    }
+
+    function testMintRevertNotOwner() external {
+        vm.prank(PERS1);
+        vm.expectRevert("Only owner");
+        token.mint(PERS1, 1e18);
+    }
+
+    function testMintRevertZeroAddress() external {
+        vm.prank(OWNER);
+        vm.expectRevert("Mint to zero address");
+        token.mint(address(0), 1e18);
+    }
+
     
     
 }
