@@ -85,5 +85,34 @@ contract TestToken is Test{
         assertEq(token.allowance(OWNER, PERS1), 0);
     }
 
+
+    function testTransferRevertLowBalance() external {
+        vm.prank(PERS1);
+        vm.expectRevert("Balance too low");
+        token.transfer(PERS2, 1e18);
+    }
+
+    function testTransferRevertZeroAddress() external {
+        vm.prank(OWNER);
+        vm.expectRevert("Transfer to zero address");
+        token.transfer(address(0), 1e18);
+    }
+
+    function testTransferFromRevertAllowance() external {
+        vm.prank(PERS1);
+        vm.expectRevert("Allowance exceeded");
+        token.transferFrom(OWNER, PERS2, 1e18);
+    }
+
+    function testTransferFromRevertBalance() external {
+        vm.prank(OWNER);
+        token.approve(PERS1, INITIAL_SUPPLY + 1);
+
+        vm.prank(PERS1);
+        vm.expectRevert("Balance too low");
+        token.transferFrom(OWNER, PERS2, INITIAL_SUPPLY + 1);
+    }
+
+    
     
 }
