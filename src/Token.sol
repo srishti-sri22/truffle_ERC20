@@ -36,4 +36,42 @@ contract Token {
         decimals = _decimals;
         owner = msg.sender;
     }
+
+    //lets make the functions that are given by the interface of OpenZepplin
+
+    function balanceOf(address account) external view returns (uint256) {
+        return balances[account];
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool) {
+        uint256 currentAllowance = allowances[from][msg.sender];
+        require(currentAllowance >= amount, "Allowance exceeded");
+
+        allowances[from][msg.sender] = currentAllowance - amount;
+        _transfer(from, to, amount);
+
+        return true;
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowances[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function allowance(
+        address tokenOwner,
+        address spender
+    ) external view returns (uint256) {
+        return allowances[tokenOwner][spender];
+    }
 }
