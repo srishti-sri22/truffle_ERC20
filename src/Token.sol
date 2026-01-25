@@ -1,6 +1,6 @@
-//SPDX-License-Identifer:MIT
+// SPDX-License-Identifer:MIT
 
-pragma solidity ^0.8.2;
+pragma solidity ^0.8.20;
 
 contract Token {
     //now lets do some gas optimisations
@@ -29,7 +29,7 @@ contract Token {
     );
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner");
+        require(msg.sender == i_owner, "Only owner");
         _;
     }
 
@@ -69,7 +69,7 @@ contract Token {
         return s_allowances[owner][spender];
     }
 
-    function get_owner() external view returns (address) {
+    function owner() external view returns (address) {
         return i_owner;
     }
 
