@@ -18,13 +18,14 @@ contract TokenFaucet {
     IERC20Mintable private immutable I_TOKEN;
     uint256 private immutable I_CLAIM_AMOUNT;
     uint256 private immutable I_COOLDOWN;
-    address private s_owner;
-    bool private s_canMint;
 
+    uint256 private constant MIN_BALANCE = 1000e18;
+    uint256 private constant TOP_UP_AMOUNT = 10000e18;
+
+    address private s_owner;
     mapping(address => uint256) private sLastClaim;
 
     event Claimed(address indexed user, uint256 amount);
-    event FaucetFunded(uint256 amount, bool wasMinted);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event TokensWithdrawn(address indexed to, uint256 amount);
 
@@ -34,7 +35,6 @@ contract TokenFaucet {
         I_CLAIM_AMOUNT = claimAmount_;
         I_COOLDOWN = cooldown_;
         s_owner = msg.sender;
-        s_canMint = false;
     }
 
     modifier onlyOwner() {
@@ -42,51 +42,27 @@ contract TokenFaucet {
         _;
     }
 
-    function updateMintStatus() external {
-        s_canMint = (I_TOKEN.owner() == address(this));
-    }
-
     function claim() external {
         uint256 last = sLastClaim[msg.sender];
-        if (last > 0) {
-            uint256 nextAllowed = last + I_COOLDOWN;
-            if (block.timestamp < nextAllowed) {
-                revert CooldownActive(nextAllowed);
-            }
+        if (last != 0 && block.timestamp < last + I_COOLDOWN) {
+            revert CooldownActive(last + I_COOLDOWN);
         }
 
         sLastClaim[msg.sender] = block.timestamp;
 
-        uint256 currentBalance = I_TOKEN.balanceOf(address(this));
-
-        if (currentBalance >= I_CLAIM_AMOUNT) {
-            bool success = I_TOKEN.transfer(msg.sender, I_CLAIM_AMOUNT);
-            if (!success) revert TransferFailed();
-        } else if (s_canMint) {
-            I_TOKEN.mint(msg.sender, I_CLAIM_AMOUNT);
-        } else {
-            revert InsufficientFaucetBalance();
+        if (I_TOKEN.balanceOf(address(this)) < MIN_BALANCE) {
+            I_TOKEN.mint(address(this), TOP_UP_AMOUNT);
         }
+
+        bool success = I_TOKEN.transfer(msg.sender, I_CLAIM_AMOUNT);
+        if (!success) revert TransferFailed();
 
         emit Claimed(msg.sender, I_CLAIM_AMOUNT);
     }
 
-    function fundFaucet(uint256 amount) external {
-        I_TOKEN.mint(address(this), amount);
-        emit FaucetFunded(amount, false);
-    }
-
-    function mintToFaucet(uint256 amount) external onlyOwner {
-        require(s_canMint, "Faucet is not token owner");
-        I_TOKEN.mint(address(this), amount);
-        emit FaucetFunded(amount, true);
-    }
-
     function withdrawTokens(uint256 amount) external onlyOwner {
         uint256 balance = I_TOKEN.balanceOf(address(this));
-        if (balance < amount) {
-            revert InsufficientFaucetBalance();
-        }
+        if (balance < amount) revert InsufficientFaucetBalance();
 
         bool success = I_TOKEN.transfer(s_owner, amount);
         if (!success) revert TransferFailed();
@@ -122,9 +98,5 @@ contract TokenFaucet {
 
     function token() external view returns (address) {
         return address(I_TOKEN);
-    }
-
-    function canMint() external view returns (bool) {
-        return s_canMint;
     }
 }

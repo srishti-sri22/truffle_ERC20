@@ -10,15 +10,15 @@ contract DeployAll is Script {
         string memory name = "Truffle";
         string memory symbol = "TFL";
         uint256 initialSupply = 1_000_000e18;
-        uint256 mintAmount = 100e18;
+        uint256 claimAmount = 100e18;
         uint256 cooldown = 1 days;
 
         vm.startBroadcast();
 
         Token token = new Token(name, symbol, initialSupply);
-        TokenFaucet faucet = new TokenFaucet(address(token), mintAmount, cooldown);
+        TokenFaucet faucet = new TokenFaucet(address(token), claimAmount, cooldown);
         token.transferOwnership(address(faucet));
-
+        token.transfer(address(faucet), initialSupply);
         vm.stopBroadcast();
 
         return (token, faucet);
