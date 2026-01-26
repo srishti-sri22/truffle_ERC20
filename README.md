@@ -1,66 +1,91 @@
-## Foundry
+# Truffle Token & Faucet (Solidity / Foundry)
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This repository contains the **Solidity smart contracts** and **Foundry tooling** for the Truffle ecosystem:
+- a minimal ERC20-style token
+- a time-based token faucet
+- deployment and testing scripts
+- local → testnet → mainnet readiness
 
-Foundry consists of:
+The goal is correctness, clarity, and production discipline.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+---
 
-## Documentation
+## Contracts Overview
 
-https://book.getfoundry.sh/
+### 1. `Token.sol`
+A lightweight, gas-optimized ERC20-compatible token implementation.
 
-## Usage
+**Key properties**
+- Fixed `DECIMALS = 18`
+- Immutable owner set at deployment
+- Minting restricted to owner
+- No external dependencies (no OpenZeppelin inheritance)
 
-### Build
+**Core features**
+- `transfer`
+- `approve`
+- `transferFrom`
+- `mint` (owner-only)
+- ERC20 `Transfer` and `Approval` events
 
-```shell
-$ forge build
-```
+**Design intent**
+- Explicit storage layout (`s`, `I_`, constants)
+- No upgradeability
+- Simple ownership model (single immutable owner)
 
-### Test
+---
 
-```shell
-$ forge test
-```
+### 2. `TokenFaucet.sol`
+A controlled faucet that distributes tokens with a cooldown.
 
-### Format
+**Key features**
+- Fixed mint amount per claim
+- Per-user cooldown enforcement
+- Prevents re-entrancy via logic ordering
+- Reads token balance directly from the token contract
 
-```shell
-$ forge fmt
-```
+**Behavior**
+- Users can claim tokens once per cooldown window
+- Claims revert if:
+  - faucet balance is insufficient
+  - cooldown has not expired
 
-### Gas Snapshots
+**Ownership model**
+- The faucet must be the **owner of the token**
+- This allows the faucet to mint tokens directly
 
-```shell
-$ forge snapshot
-```
+---
 
-### Anvil
+## Ownership Model (Important)
 
-```shell
-$ anvil
-```
+The system follows a **single-owner flow**:
 
-### Deploy
+1. `Token` is deployed
+2. `TokenFaucet` is deployed with the token address
+3. Token ownership is transferred to the faucet
+4. Only the faucet can mint new tokens
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+This ensures:
+- no externally owned account can mint
+- faucet logic is the sole mint authority
 
-### Cast
+---
 
-```shell
-$ cast <subcommand>
-```
+## Project Structure
 
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+.
+├── src/
+│ ├── Token.sol
+│ └── TokenFaucet.sol
+│
+├── script/
+│ ├── deployAll.s.sol
+│ └── transferOwnership.s.sol
+│
+├── test/
+│ ├── testToken.t.sol
+│ └── testTokenFaucet.t.sol
+│
+├── foundry.toml
+├── .env
+└── README.md
