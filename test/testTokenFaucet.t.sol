@@ -12,52 +12,69 @@ contract TestTokenFaucet is Test {
     address owner = address(0xABCD);
     address user1 = address(0x1);
     address user2 = address(0x2);
-    address user3 = address(0x3);
 
-    uint256 constant FAUCET_BALANCE = 1000e18;
-    uint256 constant MINT_AMOUNT = 100e18;
+    uint256 constant INITIAL_SUPPLY = 10000e18;
+    uint256 constant CLAIM_AMOUNT = 100e18;
     uint256 constant COOLDOWN = 1 hours;
+    uint256 constant FAUCET_FUND_AMOUNT = 1000e18;
+
+    event Claimed(address indexed user, uint256 amount);
+    event FaucetFunded(uint256 amount, bool wasMinted);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event TokensWithdrawn(address indexed to, uint256 amount);
 
     function setUp() external {
         vm.startPrank(owner);
-        token = new Token("Truffle", "TFL", 0);
-        faucet = new TokenFaucet(address(token), MINT_AMOUNT, COOLDOWN);
-        token.mint(address(faucet), FAUCET_BALANCE);
+        token = new Token("Truffle", "TFL", INITIAL_SUPPLY);
+        faucet = new TokenFaucet(address(token), CLAIM_AMOUNT, COOLDOWN);
         token.transferOwnership(address(faucet));
+        faucet.updateMintStatus();
         vm.stopPrank();
+
+        vm.prank(owner);
+        faucet.fundFaucet(FAUCET_FUND_AMOUNT);
     }
 
-    function testInitialFaucetBalance() external view {
-        assertEq(token.balanceOf(address(faucet)), FAUCET_BALANCE);
+    function testInitialSetup() external view {
+        assertEq(token.balanceOf(address(faucet)), FAUCET_FUND_AMOUNT);
+        assertEq(faucet.faucetBalance(), FAUCET_FUND_AMOUNT);
+        assertEq(faucet.claimAmount(), CLAIM_AMOUNT);
+        assertEq(faucet.cooldown(), COOLDOWN);
+        assertEq(faucet.owner(), owner);
+        assertEq(faucet.canMint(), true);
+        assertEq(faucet.token(), address(token));
     }
 
     function testSingleUserClaim() external {
+        uint256 initialFaucetBalance = token.balanceOf(address(faucet));
+
         vm.prank(user1);
         faucet.claim();
 
-        assertEq(token.balanceOf(user1), MINT_AMOUNT);
-        assertEq(token.balanceOf(address(faucet)), FAUCET_BALANCE - MINT_AMOUNT);
-    }
-
-    function testMultipleUsersClaim() external {
-        vm.prank(user1);
-        faucet.claim();
-
-        vm.prank(user2);
-        faucet.claim();
-
-        assertEq(token.balanceOf(user1), MINT_AMOUNT);
-        assertEq(token.balanceOf(user2), MINT_AMOUNT);
-        assertEq(token.balanceOf(address(faucet)), FAUCET_BALANCE - 2 * MINT_AMOUNT);
+        assertEq(token.balanceOf(user1), CLAIM_AMOUNT);
+        assertEq(token.balanceOf(address(faucet)), initialFaucetBalance - CLAIM_AMOUNT);
     }
 
     function testUserCannotClaimTwiceWithinCooldown() external {
         vm.prank(user1);
         faucet.claim();
 
+        uint256 nextAllowed = block.timestamp + COOLDOWN;
+
         vm.prank(user1);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(TokenFaucet.CooldownActive.selector, nextAllowed));
         faucet.claim();
+    }
+
+    function testMultipleUsersCanClaim() external {
+        vm.prank(user1);
+        faucet.claim();
+
+        vm.prank(user2);
+        faucet.claim();
+
+        assertEq(token.balanceOf(user1), CLAIM_AMOUNT);
+        assertEq(token.balanceOf(user2), CLAIM_AMOUNT);
     }
 
     function testUserCanClaimAfterCooldown() external {
@@ -69,56 +86,91 @@ contract TestTokenFaucet is Test {
         vm.prank(user1);
         faucet.claim();
 
-        assertEq(token.balanceOf(user1), MINT_AMOUNT * 2);
-        assertEq(token.balanceOf(address(faucet)), FAUCET_BALANCE - MINT_AMOUNT * 2);
+        assertEq(token.balanceOf(user1), CLAIM_AMOUNT * 2);
     }
 
-    function testClaimRevertsWhenFaucetEmpty() external {
-        vm.prank(user1);
-        faucet.claim();
-
-        vm.prank(user2);
-        vm.expectRevert();
-        faucet.claim();
-    }
-
-    function testFuzzClaimsSingleUser(uint256 fuzzAmount) external {
-        fuzzAmount = bound(fuzzAmount, 1, FAUCET_BALANCE);
+    function testFundFaucet() external {
+        uint256 additionalAmount = 500e18;
+        uint256 initialFaucetBalance = token.balanceOf(address(faucet));
 
         vm.prank(owner);
-        token.mint(address(faucet), fuzzAmount);
+        faucet.fundFaucet(additionalAmount);
 
-        vm.prank(user1);
-        faucet.claim();
-
-        uint256 userBalance = token.balanceOf(user1);
-        assertEq(userBalance, MINT_AMOUNT);
+        assertEq(token.balanceOf(address(faucet)), initialFaucetBalance + additionalAmount);
     }
 
-    function testFuzzMultipleUsers(uint256 fuzzAmount1, uint256 fuzzAmount2) external {
-        fuzzAmount1 = bound(fuzzAmount1, 1, FAUCET_BALANCE / 2);
-        fuzzAmount2 = bound(fuzzAmount2, 1, FAUCET_BALANCE / 2);
+    function testMintToFaucet() external {
+        uint256 mintAmount = 500e18;
+        uint256 initialFaucetBalance = token.balanceOf(address(faucet));
 
         vm.prank(owner);
-        token.mint(address(faucet), fuzzAmount1 + fuzzAmount2);
+        faucet.mintToFaucet(mintAmount);
 
-        vm.prank(user1);
-        faucet.claim();
-
-        vm.prank(user2);
-        faucet.claim();
-
-        assertEq(token.balanceOf(user1), MINT_AMOUNT);
-        assertEq(token.balanceOf(user2), MINT_AMOUNT);
-        assertEq(token.balanceOf(address(faucet)), FAUCET_BALANCE + fuzzAmount1 + fuzzAmount2 - 2 * MINT_AMOUNT);
+        assertEq(token.balanceOf(address(faucet)), initialFaucetBalance + mintAmount);
     }
 
-    function testClaimRevertIfInsufficientFaucetBalance() external {
+    function testWithdrawTokens() external {
+        uint256 withdrawAmount = 500e18;
+        uint256 initialOwnerBalance = token.balanceOf(owner);
+        uint256 initialFaucetBalance = token.balanceOf(address(faucet));
+
         vm.prank(owner);
-        bool success = token.transfer(address(0xdead), FAUCET_BALANCE - MINT_AMOUNT + 1);
-        require(success);
+        faucet.withdrawTokens(withdrawAmount);
+
+        assertEq(token.balanceOf(owner), initialOwnerBalance + withdrawAmount);
+        assertEq(token.balanceOf(address(faucet)), initialFaucetBalance - withdrawAmount);
+    }
+
+    function testTransferOwnership() external {
+        vm.prank(owner);
+        faucet.transferOwnership(user1);
+
+        assertEq(faucet.owner(), user1);
+    }
+
+    function testClaimWhenFaucetEmpty() external {
+        uint256 claimsUntilEmpty = FAUCET_FUND_AMOUNT / CLAIM_AMOUNT;
+        for (uint256 i = 0; i < claimsUntilEmpty; i++) {
+            address user = address(uint160(i + 100));
+            vm.prank(user);
+            faucet.claim();
+        }
+        assertEq(token.balanceOf(address(faucet)), 0);
+
         vm.prank(user1);
-        vm.expectRevert();
         faucet.claim();
+
+        assertEq(token.balanceOf(user1), CLAIM_AMOUNT);
+    }
+
+    function testEventsAreEmitted() external {
+        vm.expectEmit(true, false, false, true, address(faucet));
+        emit Claimed(user1, CLAIM_AMOUNT);
+        vm.prank(user1);
+        faucet.claim();
+        vm.expectEmit(false, false, false, true, address(faucet));
+        emit FaucetFunded(500e18, false);
+        vm.prank(owner);
+        faucet.fundFaucet(500e18);
+    }
+
+    function testWithdrawTokensInsufficientBalance() external {
+        uint256 excessAmount = FAUCET_FUND_AMOUNT + 1;
+
+        vm.prank(owner);
+        vm.expectRevert(TokenFaucet.InsufficientFaucetBalance.selector);
+        faucet.withdrawTokens(excessAmount);
+    }
+
+    function testTransferOwnershipNotOwner() external {
+        vm.prank(user1);
+        vm.expectRevert(TokenFaucet.NotOwner.selector);
+        faucet.transferOwnership(user2);
+    }
+
+    function testMintToFaucetNotOwner() external {
+        vm.prank(user1);
+        vm.expectRevert(TokenFaucet.NotOwner.selector);
+        faucet.mintToFaucet(100e18);
     }
 }

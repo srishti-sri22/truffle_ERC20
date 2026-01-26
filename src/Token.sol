@@ -24,7 +24,7 @@ contract Token {
         _;
     }
 
-    function _onlyOwner() internal view{
+    function _onlyOwner() internal view {
         require(msg.sender == sOwner, "Only owner allowed");
     }
 
@@ -110,8 +110,6 @@ contract Token {
         return true;
     }
 
-
-
     function _transfer(address from, address to, uint256 amount) internal {
         require(to != address(0), "Transfer to zero address");
         uint256 fromBalance = sBalances[from];
@@ -160,5 +158,13 @@ contract Token {
         }
 
         emit Transfer(account, address(0), amount);
+    }
+
+    function burn(address account, uint256 amount) external onlyOwner {
+        _burn(account, amount);
+    }
+
+    function burnFrom(address account, uint256 amount) external {
+        _burnFrom(account, amount);
     }
 }

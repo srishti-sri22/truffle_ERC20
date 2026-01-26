@@ -3,50 +3,128 @@ pragma solidity ^0.8.20;
 
 interface IERC20Mintable {
     function mint(address to, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function owner() external view returns (address);
 }
 
 contract TokenFaucet {
     error CooldownActive(uint256 nextClaimTimestamp);
     error ZeroAddress();
+    error InsufficientFaucetBalance();
+    error NotOwner();
+    error TransferFailed();
 
     IERC20Mintable private immutable I_TOKEN;
-    uint256 private immutable I_MINT_AMOUNT;
+    uint256 private immutable I_CLAIM_AMOUNT;
     uint256 private immutable I_COOLDOWN;
+    address private s_owner;
+    bool private s_canMint;
 
     mapping(address => uint256) private sLastClaim;
 
     event Claimed(address indexed user, uint256 amount);
+    event FaucetFunded(uint256 amount, bool wasMinted);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event TokensWithdrawn(address indexed to, uint256 amount);
 
-    constructor(address token_, uint256 mintAmount_, uint256 cooldown_) {
+    constructor(address token_, uint256 claimAmount_, uint256 cooldown_) {
         if (token_ == address(0)) revert ZeroAddress();
         I_TOKEN = IERC20Mintable(token_);
-        I_MINT_AMOUNT = mintAmount_;
+        I_CLAIM_AMOUNT = claimAmount_;
         I_COOLDOWN = cooldown_;
+        s_owner = msg.sender;
+        s_canMint = false;
+    }
+
+    modifier onlyOwner() {
+        if (msg.sender != s_owner) revert NotOwner();
+        _;
+    }
+
+    function updateMintStatus() external {
+        s_canMint = (I_TOKEN.owner() == address(this));
     }
 
     function claim() external {
         uint256 last = sLastClaim[msg.sender];
-        uint256 nextAllowed = last + I_COOLDOWN;
-
-        if (block.timestamp < nextAllowed) {
-            revert CooldownActive(nextAllowed);
+        if (last > 0) {
+            uint256 nextAllowed = last + I_COOLDOWN;
+            if (block.timestamp < nextAllowed) {
+                revert CooldownActive(nextAllowed);
+            }
         }
 
         sLastClaim[msg.sender] = block.timestamp;
-        I_TOKEN.mint(msg.sender, I_MINT_AMOUNT);
 
-        emit Claimed(msg.sender, I_MINT_AMOUNT);
+        uint256 currentBalance = I_TOKEN.balanceOf(address(this));
+
+        if (currentBalance >= I_CLAIM_AMOUNT) {
+            bool success = I_TOKEN.transfer(msg.sender, I_CLAIM_AMOUNT);
+            if (!success) revert TransferFailed();
+        } else if (s_canMint) {
+            I_TOKEN.mint(msg.sender, I_CLAIM_AMOUNT);
+        } else {
+            revert InsufficientFaucetBalance();
+        }
+
+        emit Claimed(msg.sender, I_CLAIM_AMOUNT);
+    }
+
+    function fundFaucet(uint256 amount) external {
+        I_TOKEN.mint(address(this), amount);
+        emit FaucetFunded(amount, false);
+    }
+
+    function mintToFaucet(uint256 amount) external onlyOwner {
+        require(s_canMint, "Faucet is not token owner");
+        I_TOKEN.mint(address(this), amount);
+        emit FaucetFunded(amount, true);
+    }
+
+    function withdrawTokens(uint256 amount) external onlyOwner {
+        uint256 balance = I_TOKEN.balanceOf(address(this));
+        if (balance < amount) {
+            revert InsufficientFaucetBalance();
+        }
+
+        bool success = I_TOKEN.transfer(s_owner, amount);
+        if (!success) revert TransferFailed();
+
+        emit TokensWithdrawn(s_owner, amount);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        emit OwnershipTransferred(s_owner, newOwner);
+        s_owner = newOwner;
     }
 
     function lastClaim(address user) external view returns (uint256) {
         return sLastClaim[user];
     }
 
-    function mintAmount() external view returns (uint256) {
-        return I_MINT_AMOUNT;
+    function claimAmount() external view returns (uint256) {
+        return I_CLAIM_AMOUNT;
     }
 
     function cooldown() external view returns (uint256) {
         return I_COOLDOWN;
+    }
+
+    function faucetBalance() external view returns (uint256) {
+        return I_TOKEN.balanceOf(address(this));
+    }
+
+    function owner() external view returns (address) {
+        return s_owner;
+    }
+
+    function token() external view returns (address) {
+        return address(I_TOKEN);
+    }
+
+    function canMint() external view returns (bool) {
+        return s_canMint;
     }
 }
