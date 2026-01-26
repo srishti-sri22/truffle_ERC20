@@ -17,11 +17,7 @@ contract TokenFaucet {
 
     event Claimed(address indexed user, uint256 amount);
 
-    constructor(
-        address token_,
-        uint256 mintAmount_,
-        uint256 cooldown_
-    ) {
+    constructor(address token_, uint256 mintAmount_, uint256 cooldown_) {
         if (token_ == address(0)) revert ZeroAddress();
         I_TOKEN = IERC20Mintable(token_);
         I_MINT_AMOUNT = mintAmount_;

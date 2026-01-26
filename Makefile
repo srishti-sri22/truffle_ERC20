@@ -1,45 +1,30 @@
-NETWORK ?= sepolia
-RPC_URL ?= $${RPC_URL}
-PRIVATE_KEY ?= $${PRIVATE_KEY}
+BUILD = forge build
+TEST = forge test
+CLEAN = forge clean
+DEPLOY = forge script
 
-OUT_DIR = out/deploy
-TOKEN_ADDR_FILE = $(OUT_DIR)/token.addr
-FAUCET_ADDR_FILE = $(OUT_DIR)/faucet.addr
+ANVIL_NETWORK = anvil
+SEPOLIA_NETWORK = sepolia
+MAINNET_NETWORK = mainnet
 
-.PHONY: all clean token faucet transferall
+.PHONY: all build test clean deploy-anvil deploy-sepolia deploy-mainnet
 
-all: token faucet transferall
+all: build test
 
-token:
-	mkdir -p $(OUT_DIR)
-	forge script script/DeployToken.s.sol:DeployToken \
-		--rpc-url $(RPC_URL) \
-		--private-key $(PRIVATE_KEY) \
-		--broadcast \
-		--json > $(OUT_DIR)/token.json
-	jq -r '.transactions[0].contractAddress' $(OUT_DIR)/token.json > $(TOKEN_ADDR_FILE)
-	@echo "Token deployed at:" $$(cat $(TOKEN_ADDR_FILE))
+build:
+	$(BUILD)
 
-faucet:
-	TOKEN_ADDR=$$(cat $(TOKEN_ADDR_FILE))
-	forge script script/DeployFaucet.s.sol:DeployFaucet \
-		--rpc-url $(RPC_URL) \
-		--private-key $(PRIVATE_KEY) \
-		--broadcast \
-		--sig "run(address)" $$TOKEN_ADDR \
-		--json > $(OUT_DIR)/faucet.json
-	jq -r '.transactions[0].contractAddress' $(OUT_DIR)/faucet.json > $(FAUCET_ADDR_FILE)
-	@echo "Faucet deployed at:" $$(cat $(FAUCET_ADDR_FILE))
-
-transferall:
-	TOKEN_ADDR=$$(cat $(TOKEN_ADDR_FILE))
-	FAUCET_ADDR=$$(cat $(FAUCET_ADDR_FILE))
-	forge script script/TransferOwnershipToFaucet.s.sol:TransferOwnershipToFaucet \
-		--rpc-url $(RPC_URL) \
-		--private-key $(PRIVATE_KEY) \
-		--broadcast \
-		--sig "run(address,address)" $$TOKEN_ADDR $$FAUCET_ADDR
-	@echo "Ownership transferred to faucet"
+test:
+	$(TEST)
 
 clean:
-	rm -rf $(OUT_DIR)
+	$(CLEAN)
+
+deploy-anvil:
+	$(DEPLOY) script/DeployAll.s.sol:DeployAll --fork-url $(RPC_URL) --broadcast
+
+deploy-sepolia:
+	$(DEPLOY) script/DeployAll.s.sol:DeployAll --rpc-url $(RPC_SEPOLIA) --private-key $(PRIVATE_KEY) --broadcast
+
+deploy-mainnet:
+	$(DEPLOY) script/DeployAll.s.sol:DeployAll --rpc-url $(RPC_MAINNET) --private-key $(PRIVATE_KEY) --broadcast

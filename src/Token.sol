@@ -3,13 +3,7 @@
 pragma solidity ^0.8.20;
 
 contract Token {
-    //now lets do some gas optimisations
-    //private make-> make getters
-    //immutable i_
-    //storage s_
-    //constants
-
-    uint8 public constant DECIMALS = 18;
+    uint8 private constant DECIMALS = 18;
 
     string private sName;
     string private sSymbol;
@@ -19,24 +13,27 @@ contract Token {
     mapping(address => uint256) private sBalances;
     mapping(address => mapping(address => uint256)) private sAllowances;
 
-    address private immutable I_OWNER;
+    address private sOwner;
 
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     modifier onlyOwner() {
-        require(msg.sender == I_OWNER, "Only owner allowed");
+        _onlyOwner();
         _;
+    }
+
+    function _onlyOwner() internal view{
+        require(msg.sender == sOwner, "Only owner allowed");
     }
 
     constructor(string memory name_, string memory symbol_, uint256 initialSupply_) {
         sName = name_;
         sSymbol = symbol_;
-        I_OWNER = msg.sender;
+        sOwner = msg.sender;
         _mint(msg.sender, initialSupply_);
     }
-
-    //lets make the getter functions
 
     function name() external view returns (string memory) {
         return sName;
@@ -59,10 +56,12 @@ contract Token {
     }
 
     function owner() external view returns (address) {
-        return I_OWNER;
+        return sOwner;
     }
 
-    //lets make the functions that are given by the interface of OpenZepplin
+    function decimals() external pure returns (uint8) {
+        return DECIMALS;
+    }
 
     function transfer(address to, uint256 amount) external returns (bool) {
         _transfer(msg.sender, to, amount);
@@ -87,7 +86,32 @@ contract Token {
         return true;
     }
 
-    //make the main comoutation functions
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Zero address");
+        emit OwnershipTransferred(sOwner, newOwner);
+        sOwner = newOwner;
+    }
+
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool) {
+        sAllowances[msg.sender][spender] += addedValue;
+        emit Approval(msg.sender, spender, sAllowances[msg.sender][spender]);
+        return true;
+    }
+
+    function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool) {
+        uint256 currentAllowance = sAllowances[msg.sender][spender];
+        require(subtractedValue <= currentAllowance, "ALLOWANCE_UNDERFLOW");
+
+        unchecked {
+            sAllowances[msg.sender][spender] = currentAllowance - subtractedValue;
+        }
+
+        emit Approval(msg.sender, spender, sAllowances[msg.sender][spender]);
+        return true;
+    }
+
+
+
     function _transfer(address from, address to, uint256 amount) internal {
         require(to != address(0), "Transfer to zero address");
         uint256 fromBalance = sBalances[from];
@@ -110,8 +134,31 @@ contract Token {
         emit Transfer(address(0), to, amount);
     }
 
-    //now lets make the final and main minting function, for the faucet
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
+    }
+
+    function _burnFrom(address account, uint256 amount) internal {
+        uint256 currentAllowance = sAllowances[account][msg.sender];
+        require(amount <= currentAllowance, "ALLOWANCE_EXCEEDED");
+
+        unchecked {
+            sAllowances[account][msg.sender] = currentAllowance - amount;
+        }
+
+        _burn(account, amount);
+    }
+
+    function _burn(address account, uint256 amount) internal {
+        require(account != address(0), "ZERO_ADDRESS");
+        uint256 accountBalance = sBalances[account];
+        require(amount <= accountBalance, "INSUFFICIENT_BALANCE");
+
+        unchecked {
+            sBalances[account] = accountBalance - amount;
+            sTotalSupply -= amount;
+        }
+
+        emit Transfer(account, address(0), amount);
     }
 }

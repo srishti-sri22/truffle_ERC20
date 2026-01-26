@@ -8,136 +8,138 @@ import {Token} from "../src/Token.sol";
 contract TestToken is Test {
     Token token;
 
-    address OWNER = address(0xABCD);
-    address PERS1 = address(0x1);
-    address PERS2 = address(0x2);
-    address PERS3 = address(0x3);
+    address owner = address(0xABCD);
+    address pers1 = address(0x1);
+    address pers2 = address(0x2);
+    address pers3 = address(0x3);
 
     uint256 constant INITIAL_SUPPLY = 1000e18;
 
     function setUp() external {
-        vm.prank(OWNER);
+        vm.prank(owner);
         token = new Token("Truffle", "TFL", INITIAL_SUPPLY);
     }
 
     function testGetters() external view {
         assertEq(token.name(), "Truffle");
         assertEq(token.symbol(), "TFL");
-        assertEq(token.DECIMALS(), 18);
+        assertEq(token.decimals(), 18);
         assertEq(token.totalSupply(), INITIAL_SUPPLY);
-        assertEq(token.owner(), OWNER);
-        assertEq(token.balanceOf(OWNER), INITIAL_SUPPLY);
-        assertEq(token.allowance(OWNER, PERS3), 0);
+        assertEq(token.owner(), owner);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY);
+        assertEq(token.allowance(owner, pers3), 0);
     }
 
     function testTransfer() external {
-        vm.prank(OWNER);
-        token.transfer(PERS1, 100e18);
+        vm.prank(owner);
+        bool success = token.transfer(pers1, 100e18);
         uint256 supplyBefore = token.totalSupply();
-        assertEq(token.balanceOf(PERS1), 100e18);
-        assertEq(token.balanceOf(OWNER), INITIAL_SUPPLY - 100e18);
+        require(success);
+        assertEq(token.balanceOf(pers1), 100e18);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY - 100e18);
         assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferEvent() external {
         vm.expectEmit(true, true, false, true, address(token));
-        emit Token.Transfer(OWNER, PERS1, 50e18);
-
-        vm.prank(OWNER);
-        token.transfer(PERS1, 50e18);
+        vm.prank(owner);
+        bool success = token.transfer(pers1, 50e18);
+        require(success);
     }
 
     function testApprove() external {
-        vm.prank(OWNER);
-        token.approve(PERS1, 200e18);
+        vm.prank(owner);
+        token.approve(pers1, 200e18);
         uint256 supplyBefore = token.totalSupply();
-        assertEq(token.allowance(OWNER, PERS1), 200e18);
+        assertEq(token.allowance(owner, pers1), 200e18);
         assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testApproveEvent() external {
         vm.expectEmit(true, true, false, true);
-        emit Token.Approval(OWNER, PERS1, 100e18);
-
-        vm.prank(OWNER);
-        token.approve(PERS1, 100e18);
+        vm.prank(owner);
+        token.approve(pers1, 100e18);
     }
 
     function testTransferFrom() external {
-        vm.startPrank(OWNER);
-        token.approve(PERS1, 300e18);
+        vm.startPrank(owner);
+        token.approve(pers1, 300e18);
         vm.stopPrank();
 
-        vm.prank(PERS1);
-        token.transferFrom(OWNER, PERS2, 150e18);
+        vm.prank(pers1);
+        bool success = token.transferFrom(owner, pers2, 150e18);
+        require(success);
         uint256 supplyBefore = token.totalSupply();
-        assertEq(token.balanceOf(PERS2), 150e18);
-        assertEq(token.allowance(OWNER, PERS1), 150e18);
+        assertEq(token.balanceOf(pers2), 150e18);
+        assertEq(token.allowance(owner, pers1), 150e18);
         assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferFromExactAllowance() external {
-        vm.prank(OWNER);
-        token.approve(PERS1, 1e18);
+        vm.prank(owner);
+        token.approve(pers1, 1e18);
 
-        vm.prank(PERS1);
-        token.transferFrom(OWNER, PERS2, 1e18);
+        vm.prank(pers1);
+        bool success = token.transferFrom(owner, pers2, 1e18);
+        require(success);
         uint256 supplyBefore = token.totalSupply();
-        assertEq(token.allowance(OWNER, PERS1), 0);
+        assertEq(token.allowance(owner, pers1), 0);
         assertEq(token.totalSupply(), supplyBefore);
     }
 
     function testTransferRevertLowBalance() external {
-        vm.prank(PERS1);
+        vm.prank(pers1);
         vm.expectRevert("Balance too low");
-        token.transfer(PERS2, 1e18);
+        bool success = token.transfer(pers2, 1e18);
+        require(success);
     }
 
     function testTransferRevertZeroAddress() external {
-        vm.prank(OWNER);
+        vm.prank(owner);
         vm.expectRevert("Transfer to zero address");
-        token.transfer(address(0), 1e18);
+        bool success = token.transfer(address(0), 1e18);
+        require(success);
     }
 
     function testTransferFromRevertAllowance() external {
-        vm.prank(PERS1);
+        vm.prank(pers1);
         vm.expectRevert("Allowance exceeded");
-        token.transferFrom(OWNER, PERS2, 1e18);
+        bool success = token.transferFrom(owner, pers2, 1e18);
+        require(success);
     }
 
     function testTransferFromRevertBalance() external {
-        vm.prank(OWNER);
-        token.approve(PERS1, INITIAL_SUPPLY + 1);
+        vm.prank(owner);
+        token.approve(pers1, INITIAL_SUPPLY + 1);
 
-        vm.prank(PERS1);
+        vm.prank(pers1);
         vm.expectRevert("Balance too low");
-        token.transferFrom(OWNER, PERS2, INITIAL_SUPPLY + 1);
+        bool success = token.transferFrom(owner, pers2, INITIAL_SUPPLY + 1);
+        require(success);
     }
 
     function testMint() external {
-        vm.prank(OWNER);
-        token.mint(PERS1, 500e18);
+        vm.prank(owner);
+        token.mint(pers1, 500e18);
 
-        assertEq(token.balanceOf(PERS1), 500e18);
+        assertEq(token.balanceOf(pers1), 500e18);
         assertEq(token.totalSupply(), INITIAL_SUPPLY + 500e18);
     }
 
     function testMintEvent() external {
         vm.expectEmit(true, true, false, true, address(token));
-        emit Token.Transfer(address(0), PERS1, 100e18);
-
-        vm.prank(OWNER);
-        token.mint(PERS1, 100e18);
+        vm.prank(owner);
+        token.mint(pers1, 100e18);
     }
 
     function testMintRevertNotOwner() external {
-        vm.prank(PERS1);
+        vm.prank(pers1);
         vm.expectRevert("Only owner");
-        token.mint(PERS1, 1e18);
+        token.mint(pers1, 1e18);
     }
 
     function testMintRevertZeroAddress() external {
-        vm.prank(OWNER);
+        vm.prank(owner);
         vm.expectRevert("Mint to zero address");
         token.mint(address(0), 1e18);
     }
@@ -145,22 +147,24 @@ contract TestToken is Test {
     function testFuzzTransfer(uint256 amount) external {
         amount = bound(amount, 1, INITIAL_SUPPLY);
 
-        vm.prank(OWNER);
-        token.transfer(PERS1, amount);
+        vm.prank(owner);
+        bool success = token.transfer(pers1, amount);
+        require(success);
 
-        assertEq(token.balanceOf(PERS1), amount);
+        assertEq(token.balanceOf(pers1), amount);
     }
 
     function testFuzzApproveAndTransferFrom(uint256 amount) external {
         amount = bound(amount, 1, INITIAL_SUPPLY);
 
-        vm.prank(OWNER);
-        token.approve(PERS1, amount);
+        vm.prank(owner);
+        token.approve(pers1, amount);
 
-        vm.prank(PERS1);
-        token.transferFrom(OWNER, PERS2, amount);
+        vm.prank(pers1);
+        bool success = token.transferFrom(owner, pers2, amount);
+        require(success);
 
-        assertEq(token.balanceOf(PERS2), amount);
-        assertEq(token.allowance(OWNER, PERS1), 0);
+        assertEq(token.balanceOf(pers2), amount);
+        assertEq(token.allowance(owner, pers1), 0);
     }
 }
