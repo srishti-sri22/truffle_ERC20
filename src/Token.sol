@@ -69,6 +69,9 @@ contract Token {
     }
 
     function approve(address spender, uint256 amount) external returns (bool) {
+        if(sAllowances[msg.sender][spender] > 0){
+            sAllowances[msg.sender][spender] += amount;
+        }
         sAllowances[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
