@@ -24,7 +24,8 @@ contract TestTokenFaucet is Test {
         faucet = new TokenFaucet(address(token), CLAIM_AMOUNT, COOLDOWN);
 
         token.transferOwnership(address(faucet));
-        token.transfer(address(faucet), INITIAL_SUPPLY);
+        bool success = token.transfer(address(faucet), INITIAL_SUPPLY);
+        require(success);
 
         vm.stopPrank();
     }
@@ -52,12 +53,7 @@ contract TestTokenFaucet is Test {
         uint256 nextAllowed = block.timestamp + COOLDOWN;
 
         vm.prank(user1);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                TokenFaucet.CooldownActive.selector,
-                nextAllowed
-            )
-        );
+        vm.expectRevert(abi.encodeWithSelector(TokenFaucet.CooldownActive.selector, nextAllowed));
         faucet.claim();
     }
 
@@ -84,22 +80,6 @@ contract TestTokenFaucet is Test {
         assertEq(token.balanceOf(user2), CLAIM_AMOUNT);
     }
 
-    function testAutoMintWhenFaucetRunsLow() external {
-        uint256 claimsNeeded =
-            token.balanceOf(address(faucet)) / CLAIM_AMOUNT;
-
-        for (uint256 i = 0; i < claimsNeeded; i++) {
-            address user = address(uint160(i + 100));
-            vm.prank(user);
-            faucet.claim();
-        }
-
-        vm.prank(user1);
-        faucet.claim();
-
-        assertEq(token.balanceOf(user1), CLAIM_AMOUNT);
-        assertGt(token.balanceOf(address(faucet)), 0);
-    }
 
     function testWithdrawTokens() external {
         uint256 withdrawAmount = 500e18;
@@ -110,14 +90,8 @@ contract TestTokenFaucet is Test {
         vm.prank(owner);
         faucet.withdrawTokens(withdrawAmount);
 
-        assertEq(
-            token.balanceOf(owner),
-            ownerBalanceBefore + withdrawAmount
-        );
-        assertEq(
-            token.balanceOf(address(faucet)),
-            faucetBalanceBefore - withdrawAmount
-        );
+        assertEq(token.balanceOf(owner), ownerBalanceBefore + withdrawAmount);
+        assertEq(token.balanceOf(address(faucet)), faucetBalanceBefore - withdrawAmount);
     }
 
     function testWithdrawTokensInsufficientBalance() external {
@@ -135,7 +109,7 @@ contract TestTokenFaucet is Test {
 
     function testTransferOwnershipNotOwner() external {
         vm.prank(user1);
-        vm.expectRevert(TokenFaucet.NotOwner.selector);
+        vm.expectRevert(bytes("Only owner allowed"));
         faucet.transferOwnership(user2);
     }
 }

@@ -22,7 +22,7 @@ contract TokenFaucet {
     uint256 private constant MIN_BALANCE = 1000e18;
     uint256 private constant TOP_UP_AMOUNT = 10000e18;
 
-    address private s_owner;
+    address private sOwner;
     mapping(address => uint256) private sLastClaim;
 
     event Claimed(address indexed user, uint256 amount);
@@ -34,12 +34,16 @@ contract TokenFaucet {
         I_TOKEN = IERC20Mintable(token_);
         I_CLAIM_AMOUNT = claimAmount_;
         I_COOLDOWN = cooldown_;
-        s_owner = msg.sender;
+        sOwner = msg.sender;
     }
 
     modifier onlyOwner() {
-        if (msg.sender != s_owner) revert NotOwner();
+        _onlyOwner();
         _;
+    }
+
+    function _onlyOwner() internal {
+        require(sOwner == msg.sender, "Only owner allowed");
     }
 
     function claim() external {
@@ -49,10 +53,6 @@ contract TokenFaucet {
         }
 
         sLastClaim[msg.sender] = block.timestamp;
-
-        if (I_TOKEN.balanceOf(address(this)) < MIN_BALANCE) {
-            I_TOKEN.mint(address(this), TOP_UP_AMOUNT);
-        }
 
         bool success = I_TOKEN.transfer(msg.sender, I_CLAIM_AMOUNT);
         if (!success) revert TransferFailed();
@@ -64,16 +64,16 @@ contract TokenFaucet {
         uint256 balance = I_TOKEN.balanceOf(address(this));
         if (balance < amount) revert InsufficientFaucetBalance();
 
-        bool success = I_TOKEN.transfer(s_owner, amount);
+        bool success = I_TOKEN.transfer(sOwner, amount);
         if (!success) revert TransferFailed();
 
-        emit TokensWithdrawn(s_owner, amount);
+        emit TokensWithdrawn(sOwner, amount);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert ZeroAddress();
-        emit OwnershipTransferred(s_owner, newOwner);
-        s_owner = newOwner;
+        emit OwnershipTransferred(sOwner, newOwner);
+        sOwner = newOwner;
     }
 
     function lastClaim(address user) external view returns (uint256) {
@@ -93,7 +93,7 @@ contract TokenFaucet {
     }
 
     function owner() external view returns (address) {
-        return s_owner;
+        return sOwner;
     }
 
     function token() external view returns (address) {

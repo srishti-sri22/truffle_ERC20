@@ -52,7 +52,6 @@ contract TestToken is Test {
         vm.prank(pers1);
         vm.expectRevert(bytes("Balance too low"));
         token.transfer(pers2, 1e18);
-
         vm.prank(owner);
         vm.expectRevert(bytes("Transfer to zero address"));
         token.transfer(address(0), 1e18);
@@ -120,7 +119,8 @@ contract TestToken is Test {
     function testBurn() external {
         vm.startPrank(owner);
 
-        token.transfer(pers1, 200e18);
+        bool success = token.transfer(pers1, 200e18);
+        require(success);
 
         vm.expectEmit(true, true, false, true, address(token));
         emit Transfer(pers1, address(0), 100e18);
@@ -134,9 +134,9 @@ contract TestToken is Test {
 
     function testBurnFrom() external {
         vm.startPrank(owner);
-        token.transfer(pers1, 200e18);
+        bool success = token.transfer(pers1, 200e18);
         vm.stopPrank();
-
+        require(success);
         vm.startPrank(pers1);
 
         vm.expectEmit(true, true, false, true, address(token));

@@ -17,7 +17,6 @@ contract DeployAll is Script {
 
         Token token = new Token(name, symbol, initialSupply);
         TokenFaucet faucet = new TokenFaucet(address(token), claimAmount, cooldown);
-        token.transferOwnership(address(faucet));
         token.transfer(address(faucet), initialSupply);
         vm.stopBroadcast();
 
