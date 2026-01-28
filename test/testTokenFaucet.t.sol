@@ -23,7 +23,6 @@ contract TestTokenFaucet is Test {
         token = new Token("Truffle", "TFL", INITIAL_SUPPLY);
         faucet = new TokenFaucet(address(token), CLAIM_AMOUNT, COOLDOWN);
 
-        token.transferOwnership(address(faucet));
         bool success = token.transfer(address(faucet), INITIAL_SUPPLY);
         require(success);
 

@@ -9,7 +9,7 @@ contract DeployAll is Script {
     function run() external returns (Token, TokenFaucet) {
         string memory name = "Truffle";
         string memory symbol = "TFL";
-        uint256 initialSupply = 1_000_000e18;
+        uint256 initialSupply = 1000000e18;
         uint256 claimAmount = 100e18;
         uint256 cooldown = 1 days;
 

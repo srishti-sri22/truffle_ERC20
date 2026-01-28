@@ -42,7 +42,7 @@ contract TokenFaucet {
         _;
     }
 
-    function _onlyOwner() internal {
+    function _onlyOwner() internal view {
         require(sOwner == msg.sender, "Only owner allowed");
     }
 
